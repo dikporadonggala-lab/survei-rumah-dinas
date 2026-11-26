@@ -1,0 +1,2515 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Dashboard Survei Rumah Dinas Guru</title>
+  <meta name="theme-color" content="#1E62B5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#1E62B5',
+              secondary: '#4A89DC',
+              accent: '#D92B2B',
+              canvas: '#F4F7FA',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS (XLSX) CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- jsPDF & AutoTable CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    /* Overlay penuh menutupi elemen bawaan Blogger */
+    #rumdin-app-root {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background-color: #F4F7FA;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #1E293B;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Scrollbar halus */
+    #rumdin-app-root::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    #rumdin-app-root::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    #rumdin-app-root::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 9999px;
+    }
+    #rumdin-app-root::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-elevation {
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    }
+
+    /* Animasi transisi halus */
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.98) translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .animate-fade-in {
+      animation: fadeInScale 0.22s ease-out forwards;
+    }
+  </style>
+</head>
+<body>
+  <!-- Kontainer Utama Aplikasi -->
+  <div id="rumdin-app-root"></div>
+
+  <!-- Application Script (ES Module + Supabase JS v2) -->
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    // =========================================================================
+    // 1. KONFIGURASI SAKLAR DEPLOYMENT (WAJIB DIATUR SEBELUM DEPLOY)
+    // =========================================================================
+    const IS_PREVIEW = false; // Ubah menjadi false SAAT DEPLOY agar mode preview & data dummy hilang dan terhubung 100% ke Supabase
+    const SUPABASE_URL = "https://gtbmdihkkrblmyagxwzs.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0Ym1kaWhra3JibG15YWd4d3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1Nzk3OTYsImV4cCI6MjExMTE1NTc5Nn0.BiXhnCxQcYm5FjzNtrpX9dAJt5-4KBE86O-WEYfKAWQ";
+
+    // Inisialisasi Supabase Client (hanya aktif jika IS_PREVIEW === false)
+    let supabase = null;
+    if (!IS_PREVIEW) {
+      if (!SUPABASE_URL.startsWith('http') || SUPABASE_ANON_KEY === 'ANON_KEY_ANDA') {
+        console.error('Konfigurasi SUPABASE_URL dan SUPABASE_ANON_KEY belum diisi dengan benar.');
+      } else {
+        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    }
+
+    // =========================================================================
+    // 2. INISIALISASI PWA 1-FILE (MANIFEST DATA URI + BLOB SERVICE WORKER)
+    // =========================================================================
+    (function initPWA() {
+      try {
+        const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#1E62B5"/><path d="M256 112L96 240h48v160h96v-96h32v96h96V240h48L256 112z" fill="#FFFFFF"/><circle cx="384" cy="144" r="44" fill="#D92B2B"/></svg>`;
+        const iconUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
+
+        const manifestObj = {
+          name: 'Survei Rumah Dinas Guru',
+          short_name: 'Survei Rumdin',
+          description: 'Sistem Pendataan & Survei Kondisi Rumah Dinas Guru',
+          start_url: location.href,
+          display: 'standalone',
+          background_color: '#F4F7FA',
+          theme_color: '#1E62B5',
+          icons: [
+            { src: iconUri, sizes: '192x192', type: 'image/svg+xml' },
+            { src: iconUri, sizes: '512x512', type: 'image/svg+xml' }
+          ]
+        };
+
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+        document.head.appendChild(manifestLink);
+
+        if ('serviceWorker' in navigator && location.protocol === 'https:') {
+          const swCode = `
+            self.addEventListener('install', (e) => self.skipWaiting());
+            self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+            self.addEventListener('fetch', (e) => {
+              e.respondWith(fetch(e.request).catch(() => new Response('Offline', { status: 503 })));
+            });
+          `;
+          const swBlob = new Blob([swCode], { type: 'application/javascript' });
+          const swUrl = URL.createObjectURL(swBlob);
+          navigator.serviceWorker.register(swUrl).catch(() => {});
+        }
+      } catch (err) {
+        // Abaikan jika environment iframe membatasi SW
+      }
+    })();
+
+    // =========================================================================
+    // 3. DAFTAR STANDAR 16 KECAMATAN & DATA PREVIEW MINIMALIS
+    // =========================================================================
+    const DEFAULT_16_KECAMATAN = [
+      'Kecamatan 01', 'Kecamatan 02', 'Kecamatan 03', 'Kecamatan 04',
+      'Kecamatan 05', 'Kecamatan 06', 'Kecamatan 07', 'Kecamatan 08',
+      'Kecamatan 09', 'Kecamatan 10', 'Kecamatan 11', 'Kecamatan 12',
+      'Kecamatan 13', 'Kecamatan 14', 'Kecamatan 15', 'Kecamatan 16'
+    ];
+
+    // Data dummy minimalis (maksimal 2 baris) hanya aktif saat IS_PREVIEW = true
+    let previewDataStore = IS_PREVIEW ? [
+      {
+        id: 'prev-1',
+        npsn: '40100101',
+        nama_sekolah: 'SD Negeri 01 Contoh Kota',
+        alamat: 'Jl. Pendidikan No. 12',
+        kecamatan: 'Kecamatan 01',
+        is_submitted: true,
+        status_rumdin: 'Ada',
+        kondisi: 'Rusak Ringan',
+        foto_url: 'https://placehold.co/800x500/1E62B5/FFFFFF?text=Foto+Rumah+Dinas+SDN+01',
+        submitted_at: new Date().toISOString()
+      },
+      {
+        id: 'prev-2',
+        npsn: '40100102',
+        nama_sekolah: 'SMP Negeri 02 Harapan Bangsa',
+        alamat: 'Jl. Merdeka Utara No. 45',
+        kecamatan: 'Kecamatan 02',
+        is_submitted: false,
+        status_rumdin: null,
+        kondisi: null,
+        foto_url: null,
+        submitted_at: null
+      }
+    ] : [];
+
+    // =========================================================================
+    // 4. STATE APLIKASI TERPUSAT
+    // =========================================================================
+    const state = {
+      session: null, // { role: 'admin' | 'school', user: {...} }
+      loginTab: 'school', // 'school' | 'admin'
+      activeAdminMenu: 'dashboard', // 'dashboard' | 'survei' | 'sekolah'
+      sidebarCollapsed: false,
+      loading: false,
+      submitting: false,
+      allData: [],
+      // Filter & Search pada Menu Data Hasil Survei
+      searchQuery: '',
+      filterStatus: 'all', // 'all' | 'submitted' | 'unsubmitted' | 'ada' | 'belum'
+      // Search pada Menu Database Referensi Sekolah
+      refSearchQuery: '',
+      // Form Sekolah
+      schoolForm: {
+        status_rumdin: '', // 'Ada' | 'Belum Ada'
+        kondisi: '', // 'Baik' | 'Rusak Ringan' | 'Rusak Berat'
+        file: null,
+        previewDataUrl: ''
+      },
+      // Modal States
+      photoModalUrl: null,
+      photoModalTitle: '',
+      schoolModal: {
+        open: false,
+        mode: 'add', // 'add' | 'edit'
+        data: { id: null, npsn: '', nama_sekolah: '', alamat: '', kecamatan: '' }
+      },
+      confirmModal: {
+        open: false,
+        title: '',
+        message: '',
+        confirmText: 'Ya, Lanjutkan',
+        confirmColor: 'bg-[#D92B2B]',
+        onConfirm: null
+      },
+      toast: null // { type: 'success' | 'error' | 'info', message: '' }
+    };
+
+    let barChartInstance = null;
+    let doughnutChartInstance = null;
+    let clockInterval = null;
+
+    // =========================================================================
+    // 5. UTILITAS NOTIFIKASI (TOAST) & MODAL KONFIRMASI (TANPA ALERT/CONFIRM)
+    // =========================================================================
+    function showToast(message, type = 'info') {
+      state.toast = { message, type };
+      renderToast();
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        state.toast = null;
+        renderToast();
+      }, 4000);
+    }
+
+    function openConfirm({ title, message, confirmText = 'Ya, Lanjutkan', confirmColor = 'bg-[#D92B2B]', onConfirm }) {
+      state.confirmModal = { open: true, title, message, confirmText, confirmColor, onConfirm };
+      render();
+    }
+
+    function closeConfirm() {
+      state.confirmModal.open = false;
+      render();
+    }
+
+    // =========================================================================
+    // 6. OPERASI DATA & AUTENTIKASI (PREVIEW VS SUPABASE LIVE)
+    // =========================================================================
+    async function initSession() {
+      if (IS_PREVIEW) {
+        const saved = sessionStorage.getItem('rumdin_preview_session');
+        if (saved) {
+          state.session = JSON.parse(saved);
+          await loadData();
+        }
+        render();
+        return;
+      }
+
+      // Cek sesi Admin Supabase
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+          state.session = { role: 'admin', user: { email: session.user.email } };
+          await loadData();
+          render();
+          return;
+        }
+      }
+
+      // Cek sesi Sekolah (disimpan di sessionStorage setelah validasi SELECT ke Supabase)
+      const savedSchool = sessionStorage.getItem('rumdin_school_npsn');
+      if (savedSchool && supabase) {
+        const { data, error } = await supabase
+          .from('data_survei_sekolah')
+          .select('*')
+          .eq('npsn', savedSchool)
+          .maybeSingle();
+
+        if (!error && data) {
+          state.session = { role: 'school', user: data };
+          syncSchoolFormFromUser(data);
+        } else {
+          sessionStorage.removeItem('rumdin_school_npsn');
+        }
+      }
+      render();
+    }
+
+    function syncSchoolFormFromUser(schoolData) {
+      if (!schoolData.is_submitted) {
+        state.schoolForm = {
+          status_rumdin: '',
+          kondisi: '',
+          file: null,
+          previewDataUrl: ''
+        };
+      }
+    }
+
+    async function loadData() {
+      if (!state.session) return;
+      state.loading = true;
+      render();
+
+      try {
+        if (IS_PREVIEW) {
+          state.allData = [...previewDataStore];
+          if (state.session.role === 'school') {
+            const fresh = state.allData.find(s => s.npsn === state.session.user.npsn);
+            if (fresh) {
+              state.session.user = fresh;
+              sessionStorage.setItem('rumdin_preview_session', JSON.stringify(state.session));
+            }
+          }
+        } else {
+          if (!supabase) throw new Error('Koneksi Supabase belum dikonfigurasi.');
+          if (state.session.role === 'admin') {
+            const { data, error } = await supabase
+              .from('data_survei_sekolah')
+              .select('*')
+              .order('kecamatan', { ascending: true })
+              .order('nama_sekolah', { ascending: true });
+            if (error) throw error;
+            state.allData = data || [];
+          } else if (state.session.role === 'school') {
+            const { data, error } = await supabase
+              .from('data_survei_sekolah')
+              .select('*')
+              .eq('npsn', state.session.user.npsn)
+              .single();
+            if (error) throw error;
+            state.session.user = data;
+          }
+        }
+      } catch (err) {
+        showToast('Gagal memuat data: ' + (err.message || 'Terjadi kesalahan'), 'error');
+      } finally {
+        state.loading = false;
+        render();
+      }
+    }
+
+    async function handleSchoolLogin(npsnInput) {
+      const npsn = (npsnInput || '').trim();
+      if (!npsn) {
+        showToast('Silakan masukkan NPSN sekolah Anda.', 'error');
+        return;
+      }
+
+      state.loading = true;
+      render();
+
+      try {
+        if (IS_PREVIEW) {
+          const found = previewDataStore.find(item => item.npsn === npsn);
+          if (!found) {
+            throw new Error('NPSN tidak ditemukan di database referensi preview. Gunakan 40100101 atau 40100102.');
+          }
+          state.session = { role: 'school', user: { ...found } };
+          sessionStorage.setItem('rumdin_preview_session', JSON.stringify(state.session));
+          syncSchoolFormFromUser(found);
+          showToast(`Selamat datang, ${found.nama_sekolah}!`, 'success');
+        } else {
+          if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+          const { data, error } = await supabase
+            .from('data_survei_sekolah')
+            .select('*')
+            .eq('npsn', npsn)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (!data) {
+            throw new Error('NPSN tidak terdaftar dalam database referensi sekolah. Hubungi Admin.');
+          }
+
+          state.session = { role: 'school', user: data };
+          sessionStorage.setItem('rumdin_school_npsn', data.npsn);
+          syncSchoolFormFromUser(data);
+          showToast(`Berhasil masuk sebagai ${data.nama_sekolah}`, 'success');
+        }
+      } catch (err) {
+        showToast(err.message || 'Gagal login sekolah.', 'error');
+      } finally {
+        state.loading = false;
+        render();
+      }
+    }
+
+    async function handleAdminLogin(emailInput, passwordInput) {
+      const email = (emailInput || '').trim();
+      const password = (passwordInput || '').trim();
+
+      if (!email || !password) {
+        showToast('Email dan password Admin wajib diisi.', 'error');
+        return;
+      }
+
+      state.loading = true;
+      render();
+
+      try {
+        if (IS_PREVIEW) {
+          state.session = { role: 'admin', user: { email: email || 'admin@preview.local' } };
+          sessionStorage.setItem('rumdin_preview_session', JSON.stringify(state.session));
+          await loadData();
+          showToast('Berhasil masuk sebagai Admin (Mode Preview).', 'success');
+        } else {
+          if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          state.session = { role: 'admin', user: { email: data.user.email } };
+          await loadData();
+          showToast('Login Admin berhasil!', 'success');
+        }
+      } catch (err) {
+        showToast('Login Admin gagal: ' + (err.message || 'Kredensial tidak valid'), 'error');
+      } finally {
+        state.loading = false;
+        render();
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        if (!IS_PREVIEW && supabase && state.session?.role === 'admin') {
+          await supabase.auth.signOut();
+        }
+      } catch (e) {}
+
+      sessionStorage.removeItem('rumdin_preview_session');
+      sessionStorage.removeItem('rumdin_school_npsn');
+      state.session = null;
+      state.allData = [];
+      state.schoolForm = { status_rumdin: '', kondisi: '', file: null, previewDataUrl: '' };
+      showToast('Anda telah keluar dari aplikasi.', 'info');
+      render();
+    }
+
+    // =========================================================================
+    // 7. OPERASI FORM SURVEI SEKOLAH (VALIDASI MAX 1MB & UPLOAD SUPABASE)
+    // =========================================================================
+    function handlePhotoFileChange(file) {
+      if (!file) return;
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        showToast('Format foto harus berupa JPG, PNG, atau WEBP.', 'error');
+        return;
+      }
+
+      // Validasi ketat maksimal 1 MB (1048576 bytes)
+      const MAX_BYTES = 1048576;
+      if (file.size > MAX_BYTES) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        showToast(`Ukuran file (${sizeMB} MB) melebihi batas maksimal 1 MB! Silakan kompres foto terlebih dahulu.`, 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        state.schoolForm.file = file;
+        state.schoolForm.previewDataUrl = e.target.result;
+        render();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function submitSchoolSurvey() {
+      const school = state.session?.user;
+      if (!school || school.is_submitted) return;
+
+      const { status_rumdin, kondisi, file, previewDataUrl } = state.schoolForm;
+
+      if (!status_rumdin) {
+        showToast('Silakan pilih jawaban ketersediaan Rumah Dinas (Ada atau Belum Ada).', 'error');
+        return;
+      }
+
+      if (status_rumdin === 'Ada') {
+        if (!file) {
+          showToast('Anda wajib mengunggah foto kondisi Rumah Dinas (Maks. 1 MB).', 'error');
+          return;
+        }
+        if (file.size > 1048576) {
+          showToast('Ukuran foto melebihi batas maksimal 1 MB!', 'error');
+          return;
+        }
+        if (!kondisi) {
+          showToast('Silakan pilih kondisi Rumah Dinas (Baik, Rusak Ringan, atau Rusak Berat).', 'error');
+          return;
+        }
+      }
+
+      state.submitting = true;
+      render();
+
+      try {
+        let uploadedUrl = null;
+
+        if (status_rumdin === 'Ada') {
+          if (IS_PREVIEW) {
+            uploadedUrl = previewDataUrl;
+          } else {
+            const ext = file.name.split('.').pop() || 'jpg';
+            const filePath = `${school.npsn}_${Date.now()}.${ext}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from('foto-rumdin')
+              .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: true,
+                contentType: file.type
+              });
+
+            if (uploadError) {
+              throw new Error('Gagal mengunggah foto ke Storage: ' + uploadError.message);
+            }
+
+            const { data: publicUrlData } = supabase.storage
+              .from('foto-rumdin')
+              .getPublicUrl(filePath);
+
+            uploadedUrl = publicUrlData.publicUrl;
+          }
+        }
+
+        const payload = {
+          is_submitted: true,
+          status_rumdin: status_rumdin,
+          kondisi: status_rumdin === 'Ada' ? kondisi : null,
+          foto_url: status_rumdin === 'Ada' ? uploadedUrl : null,
+          submitted_at: new Date().toISOString()
+        };
+
+        if (IS_PREVIEW) {
+          const idx = previewDataStore.findIndex(item => item.npsn === school.npsn);
+          if (idx !== -1) {
+            previewDataStore[idx] = { ...previewDataStore[idx], ...payload };
+            state.session.user = { ...previewDataStore[idx] };
+            sessionStorage.setItem('rumdin_preview_session', JSON.stringify(state.session));
+          }
+        } else {
+          const { data, error } = await supabase
+            .from('data_survei_sekolah')
+            .update(payload)
+            .eq('id', school.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          state.session.user = data;
+        }
+
+        showToast('Data survei berhasil dikirim dan dikunci secara otomatis!', 'success');
+      } catch (err) {
+        showToast(err.message || 'Gagal mengirim survei.', 'error');
+      } finally {
+        state.submitting = false;
+        render();
+      }
+    }
+
+    // =========================================================================
+    // 8. OPERASI ADMIN (RESET SURVEI, CRUD SEKOLAH, IMPORT EXCEL/CSV, EXPORT)
+    // =========================================================================
+    function confirmResetSurvey(school) {
+      openConfirm({
+        title: 'Reset Jawaban Survei Sekolah?',
+        message: `Kunci survei untuk "${school.nama_sekolah}" (NPSN: ${school.npsn}) akan dibuka kembali dan jawaban sebelumnya akan dikosongkan agar sekolah dapat mengirim ulang.`,
+        confirmText: 'Ya, Reset Survei',
+        confirmColor: 'bg-amber-600 hover:bg-amber-700',
+        onConfirm: async () => {
+          closeConfirm();
+          state.loading = true;
+          render();
+          try {
+            const resetPayload = {
+              is_submitted: false,
+              status_rumdin: null,
+              kondisi: null,
+              foto_url: null,
+              submitted_at: null
+            };
+
+            if (IS_PREVIEW) {
+              const idx = previewDataStore.findIndex(s => s.id === school.id);
+              if (idx !== -1) {
+                previewDataStore[idx] = { ...previewDataStore[idx], ...resetPayload };
+              }
+            } else {
+              const { error } = await supabase
+                .from('data_survei_sekolah')
+                .update(resetPayload)
+                .eq('id', school.id);
+              if (error) throw error;
+            }
+
+            await loadData();
+            showToast(`Survei ${school.nama_sekolah} berhasil di-reset.`, 'success');
+          } catch (err) {
+            showToast('Gagal mereset survei: ' + err.message, 'error');
+            state.loading = false;
+            render();
+          }
+        }
+      });
+    }
+
+    async function saveSchoolManual(formData) {
+      const npsn = (formData.npsn || '').trim();
+      const nama_sekolah = (formData.nama_sekolah || '').trim();
+      const alamat = (formData.alamat || '').trim();
+      const kecamatan = (formData.kecamatan || '').trim();
+
+      if (!npsn || !nama_sekolah || !kecamatan) {
+        showToast('NPSN, Nama Sekolah, dan Kecamatan wajib diisi.', 'error');
+        return;
+      }
+
+      state.loading = true;
+      render();
+
+      try {
+        if (state.schoolModal.mode === 'add') {
+          if (IS_PREVIEW) {
+            if (previewDataStore.some(s => s.npsn === npsn)) {
+              throw new Error('NPSN sudah terdaftar.');
+            }
+            previewDataStore.push({
+              id: 'prev-' + Date.now(),
+              npsn,
+              nama_sekolah,
+              alamat,
+              kecamatan,
+              is_submitted: false,
+              status_rumdin: null,
+              kondisi: null,
+              foto_url: null,
+              submitted_at: null
+            });
+          } else {
+            const { error } = await supabase
+              .from('data_survei_sekolah')
+              .insert([{ npsn, nama_sekolah, alamat, kecamatan, is_submitted: false }]);
+            if (error) throw error;
+          }
+          showToast('Data sekolah berhasil ditambahkan.', 'success');
+        } else {
+          const id = state.schoolModal.data.id;
+          if (IS_PREVIEW) {
+            const idx = previewDataStore.findIndex(s => s.id === id);
+            if (idx !== -1) {
+              previewDataStore[idx] = { ...previewDataStore[idx], npsn, nama_sekolah, alamat, kecamatan };
+            }
+          } else {
+            const { error } = await supabase
+              .from('data_survei_sekolah')
+              .update({ npsn, nama_sekolah, alamat, kecamatan })
+              .eq('id', id);
+            if (error) throw error;
+          }
+          showToast('Data sekolah berhasil diperbarui.', 'success');
+        }
+
+        state.schoolModal.open = false;
+        await loadData();
+      } catch (err) {
+        showToast('Gagal menyimpan sekolah: ' + (err.message || 'NPSN duplikat'), 'error');
+        state.loading = false;
+        render();
+      }
+    }
+
+    function confirmDeleteSchool(school) {
+      openConfirm({
+        title: 'Hapus Referensi Sekolah?',
+        message: `Sekolah "${school.nama_sekolah}" (NPSN: ${school.npsn}) beserta data surveinya akan dihapus permanen dari database.`,
+        confirmText: 'Ya, Hapus Permanen',
+        confirmColor: 'bg-[#D92B2B] hover:bg-red-700',
+        onConfirm: async () => {
+          closeConfirm();
+          state.loading = true;
+          render();
+          try {
+            if (IS_PREVIEW) {
+              previewDataStore = previewDataStore.filter(s => s.id !== school.id);
+            } else {
+              const { error } = await supabase
+                .from('data_survei_sekolah')
+                .delete()
+                .eq('id', school.id);
+              if (error) throw error;
+            }
+            await loadData();
+            showToast('Sekolah berhasil dihapus.', 'success');
+          } catch (err) {
+            showToast('Gagal menghapus sekolah: ' + err.message, 'error');
+            state.loading = false;
+            render();
+          }
+        }
+      });
+    }
+
+    function downloadTemplateExcel() {
+      const wsData = [
+        ['NPSN', 'Nama Sekolah', 'Alamat', 'Kecamatan'],
+        ['40100201', 'SD Negeri 01 Contoh', 'Jl. Pendidikan No. 1', 'Kecamatan 01'],
+        ['40100202', 'SMP Negeri 01 Contoh', 'Jl. Merdeka No. 10', 'Kecamatan 02']
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 35 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'Template_Sekolah');
+      XLSX.writeFile(wb, 'Template_Database_Sekolah_Rumdin.xlsx');
+      showToast('Template Excel berhasil diunduh.', 'success');
+    }
+
+    async function handleBulkImportFile(file) {
+      if (!file) return;
+      state.loading = true;
+      render();
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+        if (!rows.length) {
+          throw new Error('File Excel/CSV kosong.');
+        }
+
+        // Pemetaan kolom fleksibel (case-insensitive)
+        const parsedRecords = [];
+        const seenNpsn = new Set();
+
+        for (const row of rows) {
+          const normalized = {};
+          Object.keys(row).forEach(k => {
+            normalized[k.trim().toLowerCase()] = String(row[k]).trim();
+          });
+
+          const npsn = normalized['npsn'] || normalized['kode_sekolah'] || normalized['kode'] || '';
+          const nama_sekolah = normalized['nama sekolah'] || normalized['nama_sekolah'] || normalized['sekolah'] || '';
+          const alamat = normalized['alamat'] || normalized['alamat sekolah'] || normalized['alamat_sekolah'] || '-';
+          const kecamatan = normalized['kecamatan'] || normalized['wilayah'] || '';
+
+          if (npsn && nama_sekolah && kecamatan && !seenNpsn.has(npsn)) {
+            seenNpsn.add(npsn);
+            parsedRecords.push({
+              npsn,
+              nama_sekolah,
+              alamat,
+              kecamatan
+            });
+          }
+        }
+
+        if (!parsedRecords.length) {
+          throw new Error('Format kolom tidak valid. Pastikan terdapat kolom: NPSN, Nama Sekolah, Alamat, dan Kecamatan.');
+        }
+
+        if (IS_PREVIEW) {
+          parsedRecords.forEach((rec, i) => {
+            const existIdx = previewDataStore.findIndex(s => s.npsn === rec.npsn);
+            if (existIdx !== -1) {
+              previewDataStore[existIdx] = { ...previewDataStore[existIdx], ...rec };
+            } else {
+              previewDataStore.push({
+                id: 'imp-' + Date.now() + '-' + i,
+                ...rec,
+                is_submitted: false,
+                status_rumdin: null,
+                kondisi: null,
+                foto_url: null,
+                submitted_at: null
+              });
+            }
+          });
+        } else {
+          // Upsert berdasarkan kolom unik 'npsn' tanpa mereset status survei yang sudah ada
+          const { error } = await supabase
+            .from('data_survei_sekolah')
+            .upsert(parsedRecords, { onConflict: 'npsn', ignoreDuplicates: false });
+          if (error) throw error;
+        }
+
+        await loadData();
+        showToast(`Berhasil mengimpor ${parsedRecords.length} data referensi sekolah!`, 'success');
+      } catch (err) {
+        showToast('Gagal impor file: ' + (err.message || 'Format file bermasalah'), 'error');
+        state.loading = false;
+        render();
+      }
+    }
+
+    // =========================================================================
+    // 9. FILTER DATA & EKSPOR LAPORAN (EXCEL & PDF)
+    // =========================================================================
+    function getFilteredSurveiData() {
+      const q = state.searchQuery.toLowerCase().trim();
+      return state.allData.filter(item => {
+        const matchQuery = !q ||
+          (item.nama_sekolah || '').toLowerCase().includes(q) ||
+          (item.kecamatan || '').toLowerCase().includes(q) ||
+          (item.npsn || '').toLowerCase().includes(q);
+
+        if (!matchQuery) return false;
+
+        switch (state.filterStatus) {
+          case 'submitted':
+            return item.is_submitted === true;
+          case 'unsubmitted':
+            return !item.is_submitted;
+          case 'ada':
+            return item.is_submitted && item.status_rumdin === 'Ada';
+          case 'belum':
+            return item.is_submitted && item.status_rumdin === 'Belum Ada';
+          default:
+            return true;
+        }
+      });
+    }
+
+    function exportToExcel() {
+      const rows = getFilteredSurveiData();
+      if (!rows.length) {
+        showToast('Tidak ada data untuk diekspor.', 'error');
+        return;
+      }
+
+      const exportData = rows.map((item, idx) => ({
+        'No': idx + 1,
+        'NPSN': item.npsn,
+        'Nama Sekolah': item.nama_sekolah,
+        'Alamat': item.alamat || '-',
+        'Kecamatan': item.kecamatan,
+        'Status Pengisian': item.is_submitted ? 'Sudah Mengisi' : 'Belum Mengisi',
+        'Ketersediaan Rumdin': item.is_submitted ? (item.status_rumdin || '-') : '-',
+        'Kondisi Bangunan': item.status_rumdin === 'Ada' ? (item.kondisi || '-') : '-',
+        'Tautan Foto': item.foto_url || '-',
+        'Waktu Kirim': item.submitted_at ? new Date(item.submitted_at).toLocaleString('id-ID') : '-'
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      ws['!cols'] = [
+        { wch: 5 }, { wch: 14 }, { wch: 32 }, { wch: 30 }, { wch: 20 },
+        { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 35 }, { wch: 22 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'Hasil_Survei_Rumdin');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Laporan_Survei_Rumah_Dinas_${dateStr}.xlsx`);
+      showToast('Laporan Excel (.xlsx) berhasil diunduh.', 'success');
+    }
+
+    function exportToPDF() {
+      const rows = getFilteredSurveiData();
+      if (!rows.length) {
+        showToast('Tidak ada data untuk diekspor.', 'error');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      // Kop Judul Dokumen
+      doc.setFillColor(30, 98, 181);
+      doc.rect(14, 12, 269, 16, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text('LAPORAN REKAPITULASI SURVEI RUMAH DINAS GURU', 18, 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} | Total Data: ${rows.length} Sekolah`, 279, 22, { align: 'right' });
+
+      const tableBody = rows.map((item, idx) => [
+        idx + 1,
+        item.npsn,
+        item.nama_sekolah,
+        item.kecamatan,
+        item.is_submitted ? 'Sudah Mengisi' : 'Belum Mengisi',
+        item.is_submitted ? (item.status_rumdin || '-') : '-',
+        item.status_rumdin === 'Ada' ? (item.kondisi || '-') : '-'
+      ]);
+
+      doc.autoTable({
+        startY: 32,
+        head: [['No', 'NPSN', 'Nama Sekolah', 'Kecamatan', 'Status Survei', 'Rumah Dinas', 'Kondisi Fisik']],
+        body: tableBody,
+        theme: 'grid',
+        styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [30, 41, 59] },
+        headStyles: { fillColor: [30, 98, 181], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          1: { cellWidth: 24 },
+          2: { cellWidth: 75 },
+          3: { cellWidth: 42 },
+          4: { cellWidth: 34 },
+          5: { cellWidth: 32 },
+          6: { cellWidth: 36 }
+        }
+      });
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      doc.save(`Laporan_Survei_Rumah_Dinas_${dateStr}.pdf`);
+      showToast('Laporan PDF (.pdf) berhasil diunduh.', 'success');
+    }
+
+    // =========================================================================
+    // 10. KALKULASI STATISTIK & GRAFIK CHART.JS (70% STACKED BAR : 30% DOUGHNUT)
+    // =========================================================================
+    function computeAnalytics() {
+      const total = state.allData.length;
+      const submitted = state.allData.filter(d => d.is_submitted).length;
+      const unsubmitted = total - submitted;
+      const rumdinAda = state.allData.filter(d => d.is_submitted && d.status_rumdin === 'Ada').length;
+      const rumdinBelumAda = state.allData.filter(d => d.is_submitted && d.status_rumdin === 'Belum Ada').length;
+
+      const kondisiBaik = state.allData.filter(d => d.kondisi === 'Baik').length;
+      const kondisiRingan = state.allData.filter(d => d.kondisi === 'Rusak Ringan').length;
+      const kondisiBerat = state.allData.filter(d => d.kondisi === 'Rusak Berat').length;
+
+      // Bangun tepat 16 Kecamatan (gabungkan kecamatan unik dari data + daftar standar 16 kecamatan)
+      const dataKecSet = new Set(state.allData.map(d => (d.kecamatan || '').trim()).filter(Boolean));
+      const kecList = Array.from(dataKecSet);
+
+      for (const defKec of DEFAULT_16_KECAMATAN) {
+        if (kecList.length >= 16) break;
+        if (!dataKecSet.has(defKec)) {
+          kecList.push(defKec);
+          dataKecSet.add(defKec);
+        }
+      }
+      const final16Kecamatan = kecList.slice(0, 16);
+
+      const kecStats = final16Kecamatan.map(kec => {
+        const schoolsInKec = state.allData.filter(d => (d.kecamatan || '').trim() === kec);
+        const sCount = schoolsInKec.filter(d => d.is_submitted).length;
+        const uCount = schoolsInKec.length - sCount;
+        return {
+          kecamatan: kec,
+          sudah: sCount,
+          belum: uCount
+        };
+      });
+
+      return {
+        total,
+        submitted,
+        unsubmitted,
+        rumdinAda,
+        rumdinBelumAda,
+        kondisiBaik,
+        kondisiRingan,
+        kondisiBerat,
+        kecStats
+      };
+    }
+
+    function renderCharts() {
+      if (state.session?.role !== 'admin' || state.activeAdminMenu !== 'dashboard') return;
+
+      const barCanvas = document.getElementById('kecamatanStackedChart');
+      const doughnutCanvas = document.getElementById('rumdinDoughnutChart');
+      if (!barCanvas || !doughnutCanvas) return;
+
+      const stats = computeAnalytics();
+
+      if (barChartInstance) {
+        barChartInstance.destroy();
+        barChartInstance = null;
+      }
+      if (doughnutChartInstance) {
+        doughnutChartInstance.destroy();
+        doughnutChartInstance = null;
+      }
+
+      // 1. Stacked Bar Chart (16 Kecamatan: Biru = Sudah Mengisi, Silver = Belum Mengisi)
+      barChartInstance = new Chart(barCanvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: stats.kecStats.map(k => k.kecamatan),
+          datasets: [
+            {
+              label: 'Sudah Mengisi',
+              data: stats.kecStats.map(k => k.sudah),
+              backgroundColor: '#1E62B5',
+              hoverBackgroundColor: '#174E93',
+              borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 },
+              barPercentage: 0.65,
+              categoryPercentage: 0.8
+            },
+            {
+              label: 'Belum Mengisi',
+              data: stats.kecStats.map(k => k.belum),
+              backgroundColor: '#CBD5E1',
+              hoverBackgroundColor: '#94A3B8',
+              borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+              barPercentage: 0.65,
+              categoryPercentage: 0.8
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              align: 'end',
+              labels: {
+                usePointStyle: true,
+                pointStyle: 'rectRounded',
+                boxWidth: 10,
+                font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' },
+                color: '#475569'
+              }
+            },
+            tooltip: {
+              backgroundColor: '#1E293B',
+              padding: 10,
+              titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: '700' },
+              bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+              callbacks: {
+                footer: (items) => {
+                  const totalKec = items.reduce((acc, it) => acc + (it.parsed.y || 0), 0);
+                  return `Total Sekolah: ${totalKec}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: {
+                font: { family: 'Plus Jakarta Sans', size: 10, weight: '500' },
+                color: '#64748B',
+                maxRotation: 45,
+                minRotation: 35
+              }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: {
+                precision: 0,
+                font: { family: 'Plus Jakarta Sans', size: 11 },
+                color: '#64748B'
+              },
+              grid: {
+                color: '#F1F5F9'
+              }
+            }
+          }
+        }
+      });
+
+      // 2. Doughnut Chart (Perbandingan Jawaban "Ada" vs "Belum Ada")
+      const totalResponded = stats.rumdinAda + stats.rumdinBelumAda;
+      const chartDataValues = totalResponded > 0 ? [stats.rumdinAda, stats.rumdinBelumAda] : [0, 0];
+
+      doughnutChartInstance = new Chart(doughnutCanvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Ada Rumah Dinas', 'Belum Ada'],
+          datasets: [{
+            data: totalResponded > 0 ? chartDataValues : [1],
+            backgroundColor: totalResponded > 0 ? ['#1E62B5', '#D92B2B'] : ['#E2E8F0'],
+            hoverBackgroundColor: totalResponded > 0 ? ['#174E93', '#B91C1C'] : ['#CBD5E1'],
+            borderWidth: 3,
+            borderColor: '#FFFFFF'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%',
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              enabled: totalResponded > 0,
+              backgroundColor: '#1E293B',
+              padding: 10,
+              bodyFont: { family: 'Plus Jakarta Sans', size: 12 }
+            }
+          }
+        }
+      });
+    }
+
+    // =========================================================================
+    // 11. RENDERER KOMPONEN UI (LOGIN, ADMIN DASHBOARD, SCHOOL FORM, MODALS)
+    // =========================================================================
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function renderPreviewBanner() {
+      if (!IS_PREVIEW) return '';
+      return `
+        <div class="bg-amber-500 text-white px-4 py-2 text-xs sm:text-sm font-semibold flex flex-wrap items-center justify-between gap-2 shadow-sm relative z-50">
+          <div class="flex items-center gap-2">
+            <i data-lucide="flask-conical" class="w-4 h-4 shrink-0"></i>
+            <span>MODE PREVIEW AKTIF — Menggunakan data simulasi lokal (2 sekolah). Ubah <code class="bg-amber-700/60 px-1.5 py-0.5 rounded">IS_PREVIEW = false</code> saat deploy ke Supabase.</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button data-action="quick-login-admin" class="bg-white text-amber-800 hover:bg-amber-50 px-2.5 py-1 rounded-md text-xs font-bold transition">
+              Pintasan Admin
+            </button>
+            <button data-action="quick-login-school" class="bg-amber-800 text-white hover:bg-amber-900 px-2.5 py-1 rounded-md text-xs font-bold transition">
+              Pintasan Sekolah (40100102)
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLoginScreen() {
+      const isSchool = state.loginTab === 'school';
+      return `
+        ${renderPreviewBanner()}
+        <div class="min-h-[calc(100vh-40px)] flex items-center justify-center p-4 sm:p-6">
+          <div class="w-full max-w-4xl bg-white rounded-2xl card-elevation border border-slate-200 overflow-hidden grid grid-cols-1 md:grid-cols-2 animate-fade-in">
+            
+            <!-- PANEL KIRI (50%): Solid Corporate Blue #1E62B5 -->
+            <div class="bg-[#1E62B5] text-white p-7 sm:p-10 flex flex-col justify-between relative overflow-hidden">
+              <!-- Dekorasi Geometri Halus -->
+              <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/5 pointer-events-none"></div>
+              <div class="absolute -bottom-20 -right-12 w-56 h-56 rounded-full bg-[#4A89DC]/25 pointer-events-none"></div>
+
+              <div class="relative z-10">
+                <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-xs font-medium mb-6">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>Sistem Pendataan Aset Pendidikan</span>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">Selamat Datang</h2>
+                <p class="text-blue-100 text-sm leading-relaxed mb-6">
+                  Silakan masuk sesuai peran Anda untuk mengisi atau memantau hasil survei kondisi Rumah Dinas Guru.
+                </p>
+
+                <!-- Tab Switcher Sekolah vs Admin -->
+                <div class="grid grid-cols-2 bg-blue-950/40 p-1 rounded-xl border border-white/15 mb-6">
+                  <button type="button" data-action="switch-login-tab" data-tab="school"
+                    class="py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${isSchool ? 'bg-white text-[#1E62B5] shadow-sm' : 'text-blue-100 hover:text-white'}">
+                    <i data-lucide="school" class="w-4 h-4"></i>
+                    <span>Sekolah (NPSN)</span>
+                  </button>
+                  <button type="button" data-action="switch-login-tab" data-tab="admin"
+                    class="py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${!isSchool ? 'bg-white text-[#1E62B5] shadow-sm' : 'text-blue-100 hover:text-white'}">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    <span>Login Admin</span>
+                  </button>
+                </div>
+
+                <!-- Form Login -->
+                ${isSchool ? `
+                  <form id="schoolLoginForm" class="space-y-4">
+                    <div>
+                      <label class="block text-xs font-semibold uppercase tracking-wider text-blue-100 mb-1.5">Nomor Pokok Sekolah Nasional (NPSN)</label>
+                      <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-blue-200">
+                          <i data-lucide="hash" class="w-4 h-4"></i>
+                        </span>
+                        <input type="text" id="inputNpsn" required autocomplete="off"
+                          placeholder="Contoh: 40100101"
+                          class="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 border border-white/30 text-white placeholder-blue-200/80 text-sm font-medium focus:outline-none focus:bg-white focus:text-slate-800 focus:placeholder-slate-400 transition" />
+                      </div>
+                      <p class="text-[11px] text-blue-200 mt-1.5">Masukkan NPSN sekolah yang telah didaftarkan oleh Admin Dinas.</p>
+                    </div>
+                    <button type="submit" ${state.loading ? 'disabled' : ''}
+                      class="w-full py-3 px-4 rounded-xl bg-[#D92B2B] hover:bg-red-700 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-red-950/30 transition flex items-center justify-center gap-2 cursor-pointer">
+                      ${state.loading ? '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Memverifikasi NPSN...</span>' : '<span>Masuk ke Formulir Survei</span><i data-lucide="arrow-right" class="w-4 h-4"></i>'}
+                    </button>
+                  </form>
+                ` : `
+                  <form id="adminLoginForm" class="space-y-4">
+                    <div>
+                      <label class="block text-xs font-semibold uppercase tracking-wider text-blue-100 mb-1.5">Email Administrator</label>
+                      <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-blue-200">
+                          <i data-lucide="mail" class="w-4 h-4"></i>
+                        </span>
+                        <input type="email" id="inputAdminEmail" required
+                          placeholder="admin@dinas.go.id"
+                          class="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 border border-white/30 text-white placeholder-blue-200/80 text-sm font-medium focus:outline-none focus:bg-white focus:text-slate-800 focus:placeholder-slate-400 transition" />
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold uppercase tracking-wider text-blue-100 mb-1.5">Kata Sandi</label>
+                      <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-blue-200">
+                          <i data-lucide="lock" class="w-4 h-4"></i>
+                        </span>
+                        <input type="password" id="inputAdminPassword" required
+                          placeholder="••••••••"
+                          class="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 border border-white/30 text-white placeholder-blue-200/80 text-sm font-medium focus:outline-none focus:bg-white focus:text-slate-800 focus:placeholder-slate-400 transition" />
+                      </div>
+                    </div>
+                    <button type="submit" ${state.loading ? 'disabled' : ''}
+                      class="w-full py-3 px-4 rounded-xl bg-[#D92B2B] hover:bg-red-700 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-red-950/30 transition flex items-center justify-center gap-2 cursor-pointer">
+                      ${state.loading ? '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Mengautentikasi...</span>' : '<span>Sign In Admin</span><i data-lucide="log-in" class="w-4 h-4"></i>'}
+                    </button>
+                  </form>
+                `}
+              </div>
+
+              <div class="relative z-10 mt-8 pt-4 border-t border-white/15 flex items-center justify-between text-[11px] text-blue-200">
+                <span>&copy; ${new Date().getFullYear()} Dinas Pendidikan</span>
+                <span>v2.0 Corporate Edition</span>
+              </div>
+            </div>
+
+            <!-- PANEL KANAN (50%): White Surface + Ilustrasi Isometrik SVG -->
+            <div class="bg-white p-7 sm:p-10 flex flex-col items-center justify-between text-center">
+              <div class="w-full flex items-center justify-end gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-[#D92B2B] text-white flex items-center justify-center font-extrabold text-sm shadow-sm">
+                  RD
+                </div>
+                <div class="text-left">
+                  <div class="text-xs font-extrabold tracking-wider text-slate-800 uppercase">E-SURVEI</div>
+                  <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Sarpras Pendidikan</div>
+                </div>
+              </div>
+
+              <!-- Ilustrasi Vektor Isometrik Pendataan Sekolah & Rumah Dinas -->
+              <div class="my-6 w-full max-w-[260px]">
+                <svg viewBox="0 0 320 240" class="w-full h-auto drop-shadow-sm" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Base Isometric Platform -->
+                  <path d="M160 215L36 150L160 85L284 150L160 215Z" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="2"/>
+                  <path d="M160 202L58 148L160 94L262 148L160 202Z" fill="#DBEAFE"/>
+                  
+                  <!-- Gedung Rumah Dinas Isometrik -->
+                  <!-- Dinding Kiri -->
+                  <path d="M96 136V96L156 126V166L96 136Z" fill="#1E62B5"/>
+                  <!-- Dinding Kanan -->
+                  <path d="M216 136V96L156 126V166L216 136Z" fill="#4A89DC"/>
+                  <!-- Atap Kiri -->
+                  <path d="M88 98L156 60L156 126L88 98Z" fill="#D92B2B"/>
+                  <!-- Atap Kanan -->
+                  <path d="M224 98L156 60L156 126L224 98Z" fill="#EF4444"/>
+                  <!-- Pintu & Jendela -->
+                  <path d="M144 160V136L156 142V166L144 160Z" fill="#F8FAFC"/>
+                  <path d="M112 132V116L128 124V140L112 132Z" fill="#BAE6FD"/>
+                  <path d="M180 134V118L196 110V126L180 134Z" fill="#EFF6FF"/>
+
+                  <!-- Floating Clipboard / Checklist Card -->
+                  <rect x="206" y="34" width="76" height="58" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+                  <circle cx="224" cy="52" r="7" fill="#10B981"/>
+                  <path d="M221 52L223 54L227 50" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="236" y="48" width="34" height="4" rx="2" fill="#1E293B"/>
+                  <rect x="236" y="55" width="24" height="3" rx="1.5" fill="#94A3B8"/>
+
+                  <circle cx="224" cy="72" r="7" fill="#1E62B5"/>
+                  <rect x="236" y="68" width="32" height="4" rx="2" fill="#475569"/>
+                  <rect x="236" y="75" width="20" height="3" rx="1.5" fill="#94A3B8"/>
+
+                  <!-- Floating Location Pin -->
+                  <circle cx="74" cy="64" r="18" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2"/>
+                  <path d="M74 53C69.58 53 66 56.58 66 61C66 67 74 75 74 75C74 75 82 67 82 61C82 56.58 78.42 53 74 53ZM74 63.8C72.45 63.8 71.2 62.55 71.2 61C71.2 59.45 72.45 58.2 74 58.2C75.55 58.2 76.8 59.45 76.8 61C76.8 62.55 75.55 63.8 74 63.8Z" fill="#D92B2B"/>
+                </svg>
+              </div>
+
+              <div class="w-full">
+                <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-[#1E62B5] uppercase">
+                  SURVEI RUMAH DINAS GURU
+                </h1>
+                <div class="w-16 h-1 bg-[#D92B2B] rounded-full mx-auto my-2.5"></div>
+                <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                  Pemetaan kondisi fisik dan ketersediaan fasilitas hunian guru di seluruh satuan pendidikan wilayah kecamatan.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTopHeader(title, subtitle) {
+      const now = new Date();
+      const dateFormatted = now.toLocaleDateString('id-ID', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+
+      return `
+        <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-30">
+          <div>
+            <h1 class="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight">${escapeHtml(title)}</h1>
+            <p class="text-xs text-slate-500">${escapeHtml(subtitle)}</p>
+          </div>
+
+          <div class="flex items-center gap-2.5 sm:gap-3">
+            <!-- Date Pill -->
+            <div class="hidden sm:flex items-center gap-1.5 bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full text-xs font-semibold">
+              <i data-lucide="calendar" class="w-3.5 h-3.5 text-[#1E62B5]"></i>
+              <span>${dateFormatted}</span>
+            </div>
+
+            <!-- Live Clock -->
+            <div class="flex items-center gap-1.5 bg-blue-50 text-[#1E62B5] px-3 py-1.5 rounded-full text-xs font-bold tabular-nums">
+              <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+              <span id="liveDigitalClock">--:--:--</span>
+            </div>
+
+            <!-- User Info & Logout -->
+            <button data-action="logout" title="Keluar Aplikasi"
+              class="inline-flex items-center gap-1.5 bg-[#D92B2B] hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+              <span class="hidden sm:inline">Keluar</span>
+            </button>
+          </div>
+        </header>
+      `;
+    }
+
+    function renderAdminLayout() {
+      const menuItems = [
+        { id: 'dashboard', label: 'Dashboard Analitik', icon: 'layout-dashboard' },
+        { id: 'survei', label: 'Data Hasil Survei', icon: 'clipboard-list' },
+        { id: 'sekolah', label: 'Database Sekolah', icon: 'database' }
+      ];
+
+      const titles = {
+        dashboard: ['Dashboard Analitik', 'Ringkasan capaian survei 16 kecamatan & status rumah dinas'],
+        survei: ['Data Hasil Survei', 'Pencarian, verifikasi foto, reset kunci, dan ekspor laporan'],
+        sekolah: ['Database Referensi Sekolah', 'Kelola daftar NPSN & unggah massal Excel/CSV']
+      };
+
+      const [pageTitle, pageSub] = titles[state.activeAdminMenu] || titles.dashboard;
+      const collapsed = state.sidebarCollapsed;
+
+      return `
+        ${renderPreviewBanner()}
+        <div class="min-h-screen flex flex-col md:flex-row pb-20 md:pb-0">
+          
+          <!-- DESKTOP FIXED LEFT SIDEBAR (#1E62B5) -->
+          <aside class="hidden md:flex flex-col bg-[#1E62B5] text-white shrink-0 transition-all duration-200 ${collapsed ? 'w-20' : 'w-64'} sticky top-0 h-screen z-40 shadow-lg">
+            <!-- Brand Header -->
+            <div class="p-4 flex items-center justify-between border-b border-white/15 h-16">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <div class="w-9 h-9 rounded-lg bg-[#D92B2B] flex items-center justify-center font-extrabold text-sm shrink-0 shadow">
+                  RD
+                </div>
+                ${!collapsed ? `
+                  <div class="truncate">
+                    <div class="text-sm font-extrabold tracking-tight leading-tight">SURVEI RUMDIN</div>
+                    <div class="text-[10px] text-blue-200 uppercase tracking-wider">Panel Administrator</div>
+                  </div>
+                ` : ''}
+              </div>
+              <button data-action="toggle-sidebar" title="Perkecil/Perlebar Sidebar"
+                class="p-1.5 rounded-lg hover:bg-white/10 text-blue-100 hover:text-white transition cursor-pointer">
+                <i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 p-3 space-y-1.5 overflow-y-auto">
+              ${menuItems.map(item => {
+                const isActive = state.activeAdminMenu === item.id;
+                return `
+                  <button data-action="nav-admin" data-menu="${item.id}" title="${item.label}"
+                    class="w-full flex items-center ${collapsed ? 'justify-center px-2' : 'px-3.5'} py-3 rounded-xl text-sm font-semibold transition cursor-pointer ${
+                      isActive
+                        ? 'bg-[#D92B2B] text-white shadow-md shadow-red-950/25'
+                        : 'text-blue-100 hover:bg-white/10 hover:text-white'
+                    }">
+                    <i data-lucide="${item.icon}" class="w-5 h-5 shrink-0"></i>
+                    ${!collapsed ? `<span class="ml-3 truncate">${item.label}</span>` : ''}
+                  </button>
+                `;
+              }).join('')}
+            </nav>
+
+            <!-- Admin Footer Profile -->
+            <div class="p-3 border-t border-white/15">
+              <div class="bg-blue-950/35 rounded-xl p-2.5 flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'}">
+                <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+                  <i data-lucide="user-cog" class="w-4 h-4 text-white"></i>
+                </div>
+                ${!collapsed ? `
+                  <div class="min-w-0 flex-1">
+                    <div class="text-xs font-bold truncate">Administrator</div>
+                    <div class="text-[10px] text-blue-200 truncate">${escapeHtml(state.session?.user?.email || 'Admin')}</div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </aside>
+
+          <!-- MAIN CONTENT CANVAS -->
+          <div class="flex-1 flex flex-col min-w-0">
+            ${renderTopHeader(pageTitle, pageSub)}
+
+            <main class="flex-1 p-4 sm:p-6 max-w-[1440px] w-full mx-auto">
+              ${state.loading ? `
+                <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center card-elevation">
+                  <i data-lucide="loader-2" class="w-8 h-8 text-[#1E62B5] animate-spin mx-auto mb-3"></i>
+                  <p class="text-sm font-semibold text-slate-600">Memuat data dari server...</p>
+                </div>
+              ` : renderAdminContent()}
+            </main>
+          </div>
+
+          <!-- MOBILE FLOATING BOTTOM NAVIGATION BAR -->
+          <nav class="md:hidden fixed bottom-3 left-3 right-3 z-50 bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl shadow-xl px-2 py-1.5 flex items-center justify-around">
+            ${menuItems.map(item => {
+              const isActive = state.activeAdminMenu === item.id;
+              return `
+                <button data-action="nav-admin" data-menu="${item.id}"
+                  class="flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-[11px] font-bold transition ${
+                    isActive ? 'bg-[#1E62B5] text-white shadow-sm' : 'text-slate-500 hover:text-[#1E62B5]'
+                  }">
+                  <i data-lucide="${item.icon}" class="w-4 h-4 mb-0.5"></i>
+                  <span>${item.label.split(' ')[0]}</span>
+                </button>
+              `;
+            }).join('')}
+          </nav>
+
+        </div>
+      `;
+    }
+
+    function renderAdminContent() {
+      if (state.activeAdminMenu === 'dashboard') {
+        return renderAdminDashboardView();
+      }
+      if (state.activeAdminMenu === 'survei') {
+        return renderAdminSurveiView();
+      }
+      return renderAdminSekolahView();
+    }
+
+    function renderAdminDashboardView() {
+      const stats = computeAnalytics();
+      const pctSubmitted = stats.total > 0 ? Math.round((stats.submitted / stats.total) * 100) : 0;
+      const pctUnsubmitted = stats.total > 0 ? 100 - pctSubmitted : 0;
+      const totalResponded = stats.rumdinAda + stats.rumdinBelumAda;
+      const pctAda = totalResponded > 0 ? Math.round((stats.rumdinAda / totalResponded) * 100) : 0;
+
+      return `
+        <div class="space-y-6 animate-fade-in">
+          <!-- BARIS 1: 4 KARTU KPI BERWARNA SOLID PENUH -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            
+            <!-- KPI 1: Merah (#D92B2B) -->
+            <div class="bg-[#D92B2B] text-white rounded-xl p-5 shadow-md hover:-translate-y-0.5 transition-all">
+              <div class="flex items-center justify-between">
+                <div class="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center">
+                  <i data-lucide="school" class="w-6 h-6 text-white"></i>
+                </div>
+                <div class="text-right">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-red-100">Total Sekolah</div>
+                  <div class="text-2xl sm:text-3xl font-extrabold tabular-nums mt-0.5">${stats.total}</div>
+                </div>
+              </div>
+              <div class="mt-4 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-red-100">
+                <span>Terdaftar di Database</span>
+                <span class="font-bold">100%</span>
+              </div>
+            </div>
+
+            <!-- KPI 2: Biru Tua (#1E62B5) -->
+            <div class="bg-[#1E62B5] text-white rounded-xl p-5 shadow-md hover:-translate-y-0.5 transition-all">
+              <div class="flex items-center justify-between">
+                <div class="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center">
+                  <i data-lucide="check-circle-2" class="w-6 h-6 text-white"></i>
+                </div>
+                <div class="text-right">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-blue-100">Sudah Mengisi</div>
+                  <div class="text-2xl sm:text-3xl font-extrabold tabular-nums mt-0.5">${stats.submitted}</div>
+                </div>
+              </div>
+              <div class="mt-4 pt-2.5 border-t border-white/15">
+                <div class="flex items-center justify-between text-xs text-blue-100 mb-1">
+                  <span>Progres Partisipasi</span>
+                  <span class="font-bold">${pctSubmitted}%</span>
+                </div>
+                <div class="w-full h-1.5 bg-blue-950/40 rounded-full overflow-hidden">
+                  <div class="h-full bg-white rounded-full" style="width: ${pctSubmitted}%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- KPI 3: Biru Cerah (#4A89DC) -->
+            <div class="bg-[#4A89DC] text-white rounded-xl p-5 shadow-md hover:-translate-y-0.5 transition-all">
+              <div class="flex items-center justify-between">
+                <div class="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center">
+                  <i data-lucide="home" class="w-6 h-6 text-white"></i>
+                </div>
+                <div class="text-right">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-blue-50">Rumah Dinas Ada</div>
+                  <div class="text-2xl sm:text-3xl font-extrabold tabular-nums mt-0.5">${stats.rumdinAda}</div>
+                </div>
+              </div>
+              <div class="mt-4 pt-2.5 border-t border-white/15 flex items-center justify-between text-[11px] text-blue-50 font-medium">
+                <span>Baik: <b>${stats.kondisiBaik}</b></span>
+                <span>R.Ringan: <b>${stats.kondisiRingan}</b></span>
+                <span>R.Berat: <b>${stats.kondisiBerat}</b></span>
+              </div>
+            </div>
+
+            <!-- KPI 4: Abu Silver (#64748B) -->
+            <div class="bg-[#64748B] text-white rounded-xl p-5 shadow-md hover:-translate-y-0.5 transition-all">
+              <div class="flex items-center justify-between">
+                <div class="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center">
+                  <i data-lucide="clock-4" class="w-6 h-6 text-white"></i>
+                </div>
+                <div class="text-right">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-slate-200">Belum Mengisi</div>
+                  <div class="text-2xl sm:text-3xl font-extrabold tabular-nums mt-0.5">${stats.unsubmitted}</div>
+                </div>
+              </div>
+              <div class="mt-4 pt-2.5 border-t border-white/15">
+                <div class="flex items-center justify-between text-xs text-slate-200 mb-1">
+                  <span>Menunggu Input Sekolah</span>
+                  <span class="font-bold">${pctUnsubmitted}%</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-800/40 rounded-full overflow-hidden">
+                  <div class="h-full bg-slate-200 rounded-full" style="width: ${pctUnsubmitted}%"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- BARIS 2: GRAFIK PROPORSIONAL 70% : 30% (10 Kolom: 7 Kolom Kiri, 3 Kolom Kanan) -->
+          <div class="grid grid-cols-1 lg:grid-cols-10 gap-5">
+            
+            <!-- KOLOM KIRI (70% -> lg:col-span-7): Stacked Bar Chart 16 Kecamatan -->
+            <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 card-elevation flex flex-col">
+              <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
+                <div>
+                  <h2 class="text-sm sm:text-base font-extrabold text-slate-800">Partisipasi Survei per Kecamatan (16 Kecamatan)</h2>
+                  <p class="text-xs text-slate-500 mt-0.5">Perbandingan sekolah yang sudah mengisi (Biru) dan belum mengisi (Silver)</p>
+                </div>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold bg-blue-50 text-[#1E62B5] px-2.5 py-1 rounded-full">
+                  <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>
+                  16 Wilayah
+                </span>
+              </div>
+              <div class="relative flex-1 min-h-[300px] w-full">
+                <canvas id="kecamatanStackedChart"></canvas>
+              </div>
+            </div>
+
+            <!-- KOLOM KANAN (30% -> lg:col-span-3): Doughnut Chart Ada vs Belum Ada -->
+            <div class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 card-elevation flex flex-col justify-between">
+              <div>
+                <h2 class="text-sm sm:text-base font-extrabold text-slate-800">Ketersediaan Rumdin</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Proporsi jawaban "Ada" vs "Belum Ada"</p>
+              </div>
+
+              <!-- Ring Chart dengan Persentase di Tengah -->
+              <div class="relative my-5 h-52 w-full flex items-center justify-center">
+                <canvas id="rumdinDoughnutChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span class="text-2xl sm:text-3xl font-extrabold text-slate-800 tabular-nums">${pctAda}%</span>
+                  <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tersedia</span>
+                </div>
+              </div>
+
+              <!-- Legend Detail -->
+              <div class="space-y-2.5 pt-3 border-t border-slate-100">
+                <div class="flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-sm bg-[#1E62B5]"></span>
+                    <span class="font-semibold text-slate-700">Ada Rumah Dinas</span>
+                  </div>
+                  <span class="font-extrabold text-slate-800 tabular-nums">${stats.rumdinAda} Sekolah</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-sm bg-[#D92B2B]"></span>
+                    <span class="font-semibold text-slate-700">Belum Ada</span>
+                  </div>
+                  <span class="font-extrabold text-slate-800 tabular-nums">${stats.rumdinBelumAda} Sekolah</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdminSurveiView() {
+      const filtered = getFilteredSurveiData();
+
+      return `
+        <div class="space-y-5 animate-fade-in">
+          <!-- Toolbar Pencarian, Filter, dan Ekspor -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 card-elevation">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+              
+              <!-- Pencarian & Filter -->
+              <div class="flex flex-col sm:flex-row gap-3 flex-1">
+                <div class="relative flex-1 max-w-md">
+                  <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                  </span>
+                  <input type="text" id="surveiSearchInput" value="${escapeHtml(state.searchQuery)}"
+                    placeholder="Cari Nama Sekolah, Kecamatan, atau NPSN..."
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#1E62B5] focus:ring-2 focus:ring-blue-100 transition" />
+                </div>
+
+                <select id="surveiFilterSelect"
+                  class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#1E62B5]">
+                  <option value="all" ${state.filterStatus === 'all' ? 'selected' : ''}>Semua Status (${state.allData.length})</option>
+                  <option value="submitted" ${state.filterStatus === 'submitted' ? 'selected' : ''}>Sudah Mengisi</option>
+                  <option value="unsubmitted" ${state.filterStatus === 'unsubmitted' ? 'selected' : ''}>Belum Mengisi</option>
+                  <option value="ada" ${state.filterStatus === 'ada' ? 'selected' : ''}>Rumdin: Ada</option>
+                  <option value="belum" ${state.filterStatus === 'belum' ? 'selected' : ''}>Rumdin: Belum Ada</option>
+                </select>
+              </div>
+
+              <!-- Tombol Export Excel & PDF -->
+              <div class="flex items-center gap-2.5 shrink-0">
+                <button data-action="export-excel"
+                  class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-sm transition cursor-pointer">
+                  <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                  <span>Download Excel</span>
+                </button>
+                <button data-action="export-pdf"
+                  class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#D92B2B] hover:bg-red-700 text-white text-xs sm:text-sm font-bold shadow-sm transition cursor-pointer">
+                  <i data-lucide="file-text" class="w-4 h-4"></i>
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabel Hasil Survei -->
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden card-elevation">
+            ${filtered.length === 0 ? `
+              <div class="p-12 text-center">
+                <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                  <i data-lucide="inbox" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-700">Data Tidak Ditemukan</h3>
+                <p class="text-xs text-slate-500 mt-1">Belum ada data sekolah yang sesuai dengan kata kunci atau filter yang dipilih.</p>
+              </div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <th class="py-3.5 px-4">No</th>
+                      <th class="py-3.5 px-4">NPSN & Nama Sekolah</th>
+                      <th class="py-3.5 px-4">Kecamatan</th>
+                      <th class="py-3.5 px-4">Status Survei</th>
+                      <th class="py-3.5 px-4">Kondisi Fisik</th>
+                      <th class="py-3.5 px-4 text-center">Foto</th>
+                      <th class="py-3.5 px-4 text-right">Aksi Admin</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 text-[13px]">
+                    ${filtered.map((item, idx) => {
+                      let kondisiBadge = '<span class="text-slate-400">-</span>';
+                      if (item.status_rumdin === 'Ada') {
+                        if (item.kondisi === 'Baik') {
+                          kondisiBadge = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Baik</span>';
+                        } else if (item.kondisi === 'Rusak Ringan') {
+                          kondisiBadge = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Rusak Ringan</span>';
+                        } else if (item.kondisi === 'Rusak Berat') {
+                          kondisiBadge = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">Rusak Berat</span>';
+                        }
+                      }
+
+                      return `
+                        <tr class="hover:bg-slate-50/80 transition">
+                          <td class="py-3.5 px-4 font-semibold text-slate-500 tabular-nums">${idx + 1}</td>
+                          <td class="py-3.5 px-4">
+                            <div class="font-bold text-slate-800">${escapeHtml(item.nama_sekolah)}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">NPSN: <span class="font-semibold text-slate-600">${escapeHtml(item.npsn)}</span> &bull; ${escapeHtml(item.alamat || '-')}</div>
+                          </td>
+                          <td class="py-3.5 px-4 font-medium text-slate-700">${escapeHtml(item.kecamatan)}</td>
+                          <td class="py-3.5 px-4">
+                            ${!item.is_submitted ? `
+                              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                Belum Mengisi
+                              </span>
+                            ` : item.status_rumdin === 'Ada' ? `
+                              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#1E62B5] border border-blue-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#1E62B5]"></span>
+                                Ada Rumdin
+                              </span>
+                            ` : `
+                              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                                Belum Ada
+                              </span>
+                            `}
+                          </td>
+                          <td class="py-3.5 px-4">${kondisiBadge}</td>
+                          <td class="py-3.5 px-4 text-center">
+                            ${item.foto_url ? `
+                              <button data-action="view-photo" data-url="${escapeHtml(item.foto_url)}" data-title="${escapeHtml(item.nama_sekolah + ' (' + item.kondisi + ')')}"
+                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#1E62B5] text-xs font-bold transition cursor-pointer">
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                                <span>Lihat</span>
+                              </button>
+                            ` : '<span class="text-xs text-slate-400">-</span>'}
+                          </td>
+                          <td class="py-3.5 px-4 text-right">
+                            ${item.is_submitted ? `
+                              <button data-action="reset-survei" data-id="${escapeHtml(item.id)}"
+                                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold transition cursor-pointer">
+                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                                <span>Reset Survei</span>
+                              </button>
+                            ` : `
+                              <span class="text-[11px] text-slate-400 italic">Menunggu</span>
+                            `}
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdminSekolahView() {
+      const q = state.refSearchQuery.toLowerCase().trim();
+      const filteredRef = state.allData.filter(item =>
+        !q ||
+        (item.nama_sekolah || '').toLowerCase().includes(q) ||
+        (item.kecamatan || '').toLowerCase().includes(q) ||
+        (item.npsn || '').toLowerCase().includes(q)
+      );
+
+      return `
+        <div class="space-y-5 animate-fade-in">
+          <!-- Panel Upload Massal & Tambah Manual -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 card-elevation">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <h2 class="text-base font-extrabold text-slate-800">Upload Massal Database Referensi Sekolah</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Unggah file Excel/CSV (<code class="bg-slate-100 px-1 rounded">.xlsx, .xls, .csv</code>) dengan kolom: <b>NPSN, Nama Sekolah, Alamat, Kecamatan</b>.</p>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button data-action="download-template"
+                  class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                  <i data-lucide="download" class="w-4 h-4"></i>
+                  <span>Template Excel</span>
+                </button>
+
+                <label class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#1E62B5] hover:bg-blue-800 text-white text-xs font-bold shadow-sm transition cursor-pointer">
+                  <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                  <span>Upload Excel / CSV</span>
+                  <input type="file" id="bulkUploadInput" accept=".xlsx,.xls,.csv" class="hidden" />
+                </label>
+
+                <button data-action="open-add-school"
+                  class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#D92B2B] hover:bg-red-700 text-white text-xs font-bold shadow-sm transition cursor-pointer">
+                  <i data-lucide="plus" class="w-4 h-4"></i>
+                  <span>Tambah Sekolah</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Daftar Referensi Sekolah -->
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden card-elevation">
+            <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="text-sm font-bold text-slate-700">
+                Daftar Referensi Terdaftar <span class="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-blue-50 text-[#1E62B5]">${filteredRef.length} Sekolah</span>
+              </div>
+              <div class="relative w-full sm:w-72">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                  <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input type="text" id="refSearchInput" value="${escapeHtml(state.refSearchQuery)}"
+                  placeholder="Cari NPSN / Sekolah / Kecamatan..."
+                  class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#1E62B5]" />
+              </div>
+            </div>
+
+            ${filteredRef.length === 0 ? `
+              <div class="p-12 text-center">
+                <i data-lucide="folder-open" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+                <p class="text-sm font-bold text-slate-700">Belum Ada Data Referensi Sekolah</p>
+                <p class="text-xs text-slate-500 mt-1">Silakan upload file Excel/CSV atau tambahkan sekolah secara manual.</p>
+              </div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <th class="py-3 px-4">No</th>
+                      <th class="py-3 px-4">NPSN</th>
+                      <th class="py-3 px-4">Nama Sekolah</th>
+                      <th class="py-3 px-4">Alamat</th>
+                      <th class="py-3 px-4">Kecamatan</th>
+                      <th class="py-3 px-4 text-right">Kelola</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 text-[13px]">
+                    ${filteredRef.map((item, idx) => `
+                      <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-3 px-4 text-slate-500 font-semibold tabular-nums">${idx + 1}</td>
+                        <td class="py-3 px-4 font-bold text-[#1E62B5] tabular-nums">${escapeHtml(item.npsn)}</td>
+                        <td class="py-3 px-4 font-bold text-slate-800">${escapeHtml(item.nama_sekolah)}</td>
+                        <td class="py-3 px-4 text-slate-600">${escapeHtml(item.alamat || '-')}</td>
+                        <td class="py-3 px-4 font-medium text-slate-700">${escapeHtml(item.kecamatan)}</td>
+                        <td class="py-3 px-4 text-right space-x-1.5">
+                          <button data-action="open-edit-school" data-id="${escapeHtml(item.id)}"
+                            class="inline-flex items-center p-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-[#1E62B5] transition cursor-pointer" title="Edit Sekolah">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                          </button>
+                          <button data-action="delete-school" data-id="${escapeHtml(item.id)}"
+                            class="inline-flex items-center p-1.5 rounded-lg bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-[#D92B2B] transition cursor-pointer" title="Hapus Sekolah">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSchoolView() {
+      const school = state.session?.user;
+      if (!school) return '';
+
+      const isLocked = school.is_submitted === true;
+      const { status_rumdin, kondisi, previewDataUrl } = state.schoolForm;
+
+      return `
+        ${renderPreviewBanner()}
+        <div class="min-h-screen flex flex-col">
+          ${renderTopHeader('Formulir Survei Rumah Dinas Guru', 'Pendataan Aset & Kondisi Hunian Guru')}
+
+          <main class="flex-1 p-4 sm:p-6 max-w-3xl w-full mx-auto space-y-5 animate-fade-in">
+            
+            <!-- Kartu Identitas Sekolah -->
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden card-elevation">
+              <div class="bg-[#1E62B5] text-white px-5 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <i data-lucide="school" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <div class="text-[11px] uppercase tracking-wider text-blue-200 font-bold">Identitas Satuan Pendidikan</div>
+                    <h2 class="text-base sm:text-lg font-extrabold leading-tight">${escapeHtml(school.nama_sekolah)}</h2>
+                  </div>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-extrabold ${isLocked ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-slate-900'}">
+                  ${isLocked ? 'TERKUNCI' : 'BELUM MENGISI'}
+                </span>
+              </div>
+
+              <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50/60 text-xs">
+                <div>
+                  <span class="text-slate-400 font-semibold block">NPSN</span>
+                  <span class="text-sm font-extrabold text-slate-800 tabular-nums">${escapeHtml(school.npsn)}</span>
+                </div>
+                <div>
+                  <span class="text-slate-400 font-semibold block">Kecamatan</span>
+                  <span class="text-sm font-bold text-slate-800">${escapeHtml(school.kecamatan)}</span>
+                </div>
+                <div>
+                  <span class="text-slate-400 font-semibold block">Alamat Sekolah</span>
+                  <span class="text-sm font-medium text-slate-700">${escapeHtml(school.alamat || '-')}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- KONTEN UTAMA: TERKUNCI (READ-ONLY) VS FORMULIR INPUT -->
+            ${isLocked ? `
+              <div class="bg-white rounded-2xl border-2 border-emerald-500/40 p-6 card-elevation space-y-5">
+                <div class="flex items-start gap-3.5 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="lock" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-extrabold text-emerald-900">Data Survei Telah Dikirim & Terkunci Otomatis</h3>
+                    <p class="text-xs text-emerald-700 mt-1 leading-relaxed">
+                      Terima kasih telah berpartisipasi. Data yang sudah dikirim hanya dapat dilihat (<i>Read-Only</i>). Apabila terdapat kesalahan input, silakan hubungi Tim Admin Dinas untuk melakukan <b>Reset Survei</b>.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs font-semibold text-slate-400">Ketersediaan Rumah Dinas</div>
+                    <div class="text-lg font-extrabold text-[#1E62B5] mt-1">${escapeHtml(school.status_rumdin)}</div>
+                  </div>
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs font-semibold text-slate-400">Kondisi Bangunan</div>
+                    <div class="text-lg font-extrabold text-slate-800 mt-1">${escapeHtml(school.status_rumdin === 'Ada' ? (school.kondisi || '-') : 'Tidak Berlaku')}</div>
+                  </div>
+                </div>
+
+                ${school.status_rumdin === 'Ada' && school.foto_url ? `
+                  <div>
+                    <div class="text-xs font-bold text-slate-600 mb-2">Dokumentasi Foto Rumah Dinas yang Dikirim:</div>
+                    <div class="rounded-xl overflow-hidden border border-slate-200 bg-slate-100 max-h-80 flex items-center justify-center">
+                      <img src="${escapeHtml(school.foto_url)}" alt="Foto Rumah Dinas" class="w-full max-h-80 object-contain" />
+                    </div>
+                  </div>
+                ` : ''}
+
+                <div class="text-[11px] text-slate-400 text-right">
+                  Waktu Pengiriman: ${school.submitted_at ? new Date(school.submitted_at).toLocaleString('id-ID') : '-'}
+                </div>
+              </div>
+            ` : `
+              <div class="bg-white rounded-2xl border border-slate-200 p-6 card-elevation space-y-6">
+                <div>
+                  <label class="block text-sm sm:text-base font-extrabold text-slate-800 mb-1">
+                    1. Apakah tersedia Rumah Dinas Guru di sekolah Anda? <span class="text-[#D92B2B]">*</span>
+                  </label>
+                  <p class="text-xs text-slate-500 mb-4">Pilih salah satu jawaban sesuai kondisi riil di lingkungan sekolah Anda.</p>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <!-- Pilihan: Ada -->
+                    <button type="button" data-action="select-rumdin" data-value="Ada"
+                      class="p-4 rounded-xl border-2 text-left transition flex items-center gap-3.5 cursor-pointer ${
+                        status_rumdin === 'Ada'
+                          ? 'border-[#1E62B5] bg-blue-50/70 shadow-sm'
+                          : 'border-slate-200 hover:border-blue-300 bg-white'
+                      }">
+                      <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        status_rumdin === 'Ada' ? 'bg-[#1E62B5] text-white' : 'bg-slate-100 text-slate-500'
+                      }">
+                        <i data-lucide="home" class="w-5 h-5"></i>
+                      </div>
+                      <div>
+                        <div class="text-sm font-extrabold text-slate-800">Ada</div>
+                        <div class="text-xs text-slate-500">Tersedia bangunan rumah dinas</div>
+                      </div>
+                    </button>
+
+                    <!-- Pilihan: Belum Ada -->
+                    <button type="button" data-action="select-rumdin" data-value="Belum Ada"
+                      class="p-4 rounded-xl border-2 text-left transition flex items-center gap-3.5 cursor-pointer ${
+                        status_rumdin === 'Belum Ada'
+                          ? 'border-[#D92B2B] bg-red-50/60 shadow-sm'
+                          : 'border-slate-200 hover:border-red-300 bg-white'
+                      }">
+                      <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        status_rumdin === 'Belum Ada' ? 'bg-[#D92B2B] text-white' : 'bg-slate-100 text-slate-500'
+                      }">
+                        <i data-lucide="x-circle" class="w-5 h-5"></i>
+                      </div>
+                      <div>
+                        <div class="text-sm font-extrabold text-slate-800">Belum Ada</div>
+                        <div class="text-xs text-slate-500">Tidak memiliki rumah dinas</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- JIKA PILIH "ADA": MUNCUL UPLOAD FOTO (MAX 1MB) & PILIHAN KONDISI -->
+                ${status_rumdin === 'Ada' ? `
+                  <div class="space-y-5 pt-4 border-t border-slate-100 animate-fade-in">
+                    <!-- Upload Foto Max 1 MB -->
+                    <div>
+                      <label class="block text-sm font-extrabold text-slate-800 mb-1">
+                        2. Unggah Foto Kondisi Rumah Dinas <span class="text-[#D92B2B]">*</span>
+                      </label>
+                      <p class="text-xs text-slate-500 mb-3">Format JPG/PNG/WEBP dengan ukuran maksimal <b>1 MB</b>.</p>
+
+                      <label class="block border-2 border-dashed border-slate-300 hover:border-[#1E62B5] rounded-2xl p-5 text-center bg-slate-50/60 hover:bg-blue-50/30 transition cursor-pointer">
+                        ${previewDataUrl ? `
+                          <div class="space-y-3">
+                            <img src="${previewDataUrl}" alt="Preview Foto" class="max-h-56 mx-auto rounded-xl shadow-sm object-contain" />
+                            <div class="text-xs font-bold text-[#1E62B5]">Klik untuk mengganti foto (${(state.schoolForm.file.size / 1024).toFixed(0)} KB)</div>
+                          </div>
+                        ` : `
+                          <div class="py-3">
+                            <div class="w-11 h-11 rounded-full bg-blue-100 text-[#1E62B5] flex items-center justify-center mx-auto mb-2.5">
+                              <i data-lucide="camera" class="w-5 h-5"></i>
+                            </div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-700">Klik untuk memilih foto dari perangkat</div>
+                            <div class="text-[11px] text-slate-400 mt-1">Ukuran maksimal file: 1 MB (1.024 KB)</div>
+                          </div>
+                        `}
+                        <input type="file" id="schoolPhotoInput" accept="image/jpeg,image/png,image/webp" class="hidden" />
+                      </label>
+                    </div>
+
+                    <!-- 3 Pilihan Kondisi -->
+                    <div>
+                      <label class="block text-sm font-extrabold text-slate-800 mb-1">
+                        3. Kondisi Fisik Rumah Dinas <span class="text-[#D92B2B]">*</span>
+                      </label>
+                      <p class="text-xs text-slate-500 mb-3">Pilih tingkat kelayakan bangunan saat ini:</p>
+
+                      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        ${[
+                          { val: 'Baik', num: '1', desc: 'Layak huni & terawat', activeClass: 'border-emerald-600 bg-emerald-50 text-emerald-900', badgeClass: 'bg-emerald-600 text-white' },
+                          { val: 'Rusak Ringan', num: '2', desc: 'Perlu perbaikan kecil', activeClass: 'border-amber-500 bg-amber-50 text-amber-900', badgeClass: 'bg-amber-500 text-white' },
+                          { val: 'Rusak Berat', num: '3', desc: 'Tidak layak / rusak parah', activeClass: 'border-[#D92B2B] bg-red-50 text-red-900', badgeClass: 'bg-[#D92B2B] text-white' }
+                        ].map(opt => {
+                          const selected = kondisi === opt.val;
+                          return `
+                            <button type="button" data-action="select-kondisi" data-value="${opt.val}"
+                              class="p-3.5 rounded-xl border-2 text-left transition cursor-pointer ${selected ? opt.activeClass : 'border-slate-200 hover:border-slate-300 bg-white'}">
+                              <div class="flex items-center gap-2 mb-1">
+                                <span class="w-5 h-5 rounded-full text-[11px] font-extrabold flex items-center justify-center ${selected ? opt.badgeClass : 'bg-slate-200 text-slate-700'}">${opt.num}</span>
+                                <span class="text-xs sm:text-sm font-extrabold">${opt.val}</span>
+                              </div>
+                              <div class="text-[11px] text-slate-500">${opt.desc}</div>
+                            </button>
+                          `;
+                        }).join('')}
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- TOMBOL KIRIM -->
+                ${status_rumdin ? `
+                  <div class="pt-4 border-t border-slate-100">
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center gap-2.5 text-xs text-amber-800">
+                      <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                      <span>Pastikan data sudah benar. Setelah dikirim, formulir akan <b>dikunci otomatis</b>.</span>
+                    </div>
+                    <button type="button" data-action="submit-school-survey" ${state.submitting ? 'disabled' : ''}
+                      class="w-full py-3.5 px-5 rounded-xl bg-[#D92B2B] hover:bg-red-700 text-white font-extrabold text-sm shadow-lg shadow-red-600/20 transition flex items-center justify-center gap-2 cursor-pointer">
+                      ${state.submitting
+                        ? '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Mengirim & Mengunci Data...</span>'
+                        : '<i data-lucide="send" class="w-4 h-4"></i><span>Kirim Data Survei</span>'}
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
+            `}
+          </main>
+        </div>
+      `;
+    }
+
+    function renderModals() {
+      let html = '';
+
+      // 1. Modal Preview Foto
+      if (state.photoModalUrl) {
+        html += `
+          <div class="fixed inset-0 z-[1000000] bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div class="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+              <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="text-sm font-extrabold text-slate-800 truncate pr-4">${escapeHtml(state.photoModalTitle)}</h3>
+                <button data-action="close-photo-modal" class="p-1.5 rounded-lg bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-[#D92B2B] transition cursor-pointer">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <div class="p-4 bg-slate-100 flex items-center justify-center max-h-[75vh]">
+                <img src="${escapeHtml(state.photoModalUrl)}" alt="Preview Foto" class="max-h-[70vh] w-auto rounded-xl object-contain shadow" />
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 2. Modal Tambah / Edit Sekolah
+      if (state.schoolModal.open) {
+        const { mode, data } = state.schoolModal;
+        html += `
+          <div class="fixed inset-0 z-[1000000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200">
+              <div class="bg-[#1E62B5] text-white px-5 py-4 flex items-center justify-between">
+                <h3 class="text-sm font-extrabold">${mode === 'add' ? 'Tambah Referensi Sekolah Baru' : 'Edit Data Referensi Sekolah'}</h3>
+                <button data-action="close-school-modal" class="p-1 rounded-lg hover:bg-white/15 text-white cursor-pointer">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <form id="schoolCrudForm" class="p-5 space-y-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">NPSN <span class="text-[#D92B2B]">*</span></label>
+                  <input type="text" name="npsn" required value="${escapeHtml(data.npsn)}" placeholder="Contoh: 40100105"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#1E62B5]" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Nama Sekolah <span class="text-[#D92B2B]">*</span></label>
+                  <input type="text" name="nama_sekolah" required value="${escapeHtml(data.nama_sekolah)}" placeholder="Contoh: SD Negeri 05 Merdeka"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#1E62B5]" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Alamat Sekolah</label>
+                  <input type="text" name="alamat" value="${escapeHtml(data.alamat)}" placeholder="Jl. Raya Pendidikan No. 10"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#1E62B5]" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Kecamatan <span class="text-[#D92B2B]">*</span></label>
+                  <input type="text" name="kecamatan" list="kecamatanSuggestions" required value="${escapeHtml(data.kecamatan)}" placeholder="Pilih atau ketik nama kecamatan"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#1E62B5]" />
+                  <datalist id="kecamatanSuggestions">
+                    ${DEFAULT_16_KECAMATAN.map(k => `<option value="${escapeHtml(k)}"></option>`).join('')}
+                  </datalist>
+                </div>
+                <div class="pt-2 flex items-center justify-end gap-2">
+                  <button type="button" data-action="close-school-modal"
+                    class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                    Batal
+                  </button>
+                  <button type="submit"
+                    class="px-4 py-2 rounded-xl bg-[#1E62B5] hover:bg-blue-800 text-white text-xs font-bold shadow transition cursor-pointer">
+                    Simpan Data
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+      }
+
+      // 3. Modal Konfirmasi Kustom (Pengganti confirm())
+      if (state.confirmModal.open) {
+        html += `
+          <div class="fixed inset-0 z-[1000001] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+              <div class="w-11 h-11 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3.5">
+                <i data-lucide="alert-circle" class="w-6 h-6"></i>
+              </div>
+              <h3 class="text-base font-extrabold text-slate-800">${escapeHtml(state.confirmModal.title)}</h3>
+              <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">${escapeHtml(state.confirmModal.message)}</p>
+              <div class="mt-5 flex items-center justify-end gap-2.5">
+                <button data-action="close-confirm"
+                  class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                  Batal
+                </button>
+                <button data-action="execute-confirm"
+                  class="px-4 py-2 rounded-xl ${state.confirmModal.confirmColor} text-white text-xs font-bold shadow transition cursor-pointer">
+                  ${escapeHtml(state.confirmModal.confirmText)}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      return html;
+    }
+
+    function renderToast() {
+      let container = document.getElementById('rumdin-toast-box');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'rumdin-toast-box';
+        container.className = 'fixed top-4 right-4 z-[1000005] max-w-sm w-full pointer-events-none px-4 sm:px-0';
+        document.getElementById('rumdin-app-root').appendChild(container);
+      }
+
+      if (!state.toast) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const styles = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-[#D92B2B] text-white border-red-500',
+        info: 'bg-slate-800 text-white border-slate-700'
+      };
+      const icons = {
+        success: 'check-circle',
+        error: 'alert-octagon',
+        info: 'info'
+      };
+
+      container.innerHTML = `
+        <div class="pointer-events-auto flex items-start gap-2.5 p-3.5 rounded-xl shadow-xl border ${styles[state.toast.type] || styles.info} animate-fade-in">
+          <i data-lucide="${icons[state.toast.type] || 'info'}" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          <div class="text-xs font-semibold leading-relaxed flex-1">${escapeHtml(state.toast.message)}</div>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function updateDigitalClock() {
+      const el = document.getElementById('liveDigitalClock');
+      if (el) {
+        el.textContent = new Date().toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+      }
+    }
+
+    function render() {
+      const root = document.getElementById('rumdin-app-root');
+      if (!root) return;
+
+      let content = '';
+      if (!state.session) {
+        content = renderLoginScreen();
+      } else if (state.session.role === 'admin') {
+        content = renderAdminLayout();
+      } else {
+        content = renderSchoolView();
+      }
+
+      content += renderModals();
+      root.innerHTML = content;
+
+      // Render Ikon Lucide
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+
+      // Render Toast jika sedang aktif
+      renderToast();
+
+      // Update jam digital
+      updateDigitalClock();
+
+      // Render grafik Chart.js jika di halaman Dashboard Admin
+      renderCharts();
+
+      // Pasang listener input dinamis
+      bindDynamicInputs();
+    }
+
+    // =========================================================================
+    // 12. EVENT DELEGATION & INPUT LISTENERS
+    // =========================================================================
+    function bindDynamicInputs() {
+      const schoolLoginForm = document.getElementById('schoolLoginForm');
+      if (schoolLoginForm) {
+        schoolLoginForm.onsubmit = (e) => {
+          e.preventDefault();
+          const npsn = document.getElementById('inputNpsn')?.value;
+          handleSchoolLogin(npsn);
+        };
+      }
+
+      const adminLoginForm = document.getElementById('adminLoginForm');
+      if (adminLoginForm) {
+        adminLoginForm.onsubmit = (e) => {
+          e.preventDefault();
+          const email = document.getElementById('inputAdminEmail')?.value;
+          const pass = document.getElementById('inputAdminPassword')?.value;
+          handleAdminLogin(email, pass);
+        };
+      }
+
+      const surveiSearchInput = document.getElementById('surveiSearchInput');
+      if (surveiSearchInput) {
+        surveiSearchInput.oninput = (e) => {
+          state.searchQuery = e.target.value;
+          render();
+          const el = document.getElementById('surveiSearchInput');
+          if (el) {
+            el.focus();
+            el.setSelectionRange(el.value.length, el.value.length);
+          }
+        };
+      }
+
+      const surveiFilterSelect = document.getElementById('surveiFilterSelect');
+      if (surveiFilterSelect) {
+        surveiFilterSelect.onchange = (e) => {
+          state.filterStatus = e.target.value;
+          render();
+        };
+      }
+
+      const refSearchInput = document.getElementById('refSearchInput');
+      if (refSearchInput) {
+        refSearchInput.oninput = (e) => {
+          state.refSearchQuery = e.target.value;
+          render();
+          const el = document.getElementById('refSearchInput');
+          if (el) {
+            el.focus();
+            el.setSelectionRange(el.value.length, el.value.length);
+          }
+        };
+      }
+
+      const bulkUploadInput = document.getElementById('bulkUploadInput');
+      if (bulkUploadInput) {
+        bulkUploadInput.onchange = (e) => {
+          if (e.target.files?.[0]) {
+            handleBulkImportFile(e.target.files[0]);
+          }
+        };
+      }
+
+      const schoolPhotoInput = document.getElementById('schoolPhotoInput');
+      if (schoolPhotoInput) {
+        schoolPhotoInput.onchange = (e) => {
+          if (e.target.files?.[0]) {
+            handlePhotoFileChange(e.target.files[0]);
+          }
+        };
+      }
+
+      const schoolCrudForm = document.getElementById('schoolCrudForm');
+      if (schoolCrudForm) {
+        schoolCrudForm.onsubmit = (e) => {
+          e.preventDefault();
+          const fd = new FormData(schoolCrudForm);
+          saveSchoolManual({
+            npsn: fd.get('npsn'),
+            nama_sekolah: fd.get('nama_sekolah'),
+            alamat: fd.get('alamat'),
+            kecamatan: fd.get('kecamatan')
+          });
+        };
+      }
+    }
+
+    document.getElementById('rumdin-app-root').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+
+      const action = btn.getAttribute('data-action');
+
+      switch (action) {
+        case 'switch-login-tab':
+          state.loginTab = btn.getAttribute('data-tab');
+          render();
+          break;
+
+        case 'quick-login-admin':
+          if (IS_PREVIEW) handleAdminLogin('admin@preview.local', 'preview');
+          break;
+
+        case 'quick-login-school':
+          if (IS_PREVIEW) handleSchoolLogin('40100102');
+          break;
+
+        case 'logout':
+          handleLogout();
+          break;
+
+        case 'toggle-sidebar':
+          state.sidebarCollapsed = !state.sidebarCollapsed;
+          render();
+          break;
+
+        case 'nav-admin':
+          state.activeAdminMenu = btn.getAttribute('data-menu');
+          render();
+          break;
+
+        case 'export-excel':
+          exportToExcel();
+          break;
+
+        case 'export-pdf':
+          exportToPDF();
+          break;
+
+        case 'view-photo':
+          state.photoModalUrl = btn.getAttribute('data-url');
+          state.photoModalTitle = btn.getAttribute('data-title');
+          render();
+          break;
+
+        case 'close-photo-modal':
+          state.photoModalUrl = null;
+          state.photoModalTitle = '';
+          render();
+          break;
+
+        case 'reset-survei': {
+          const id = btn.getAttribute('data-id');
+          const target = state.allData.find(s => String(s.id) === String(id));
+          if (target) confirmResetSurvey(target);
+          break;
+        }
+
+        case 'download-template':
+          downloadTemplateExcel();
+          break;
+
+        case 'open-add-school':
+          state.schoolModal = {
+            open: true,
+            mode: 'add',
+            data: { id: null, npsn: '', nama_sekolah: '', alamat: '', kecamatan: '' }
+          };
+          render();
+          break;
+
+        case 'open-edit-school': {
+          const id = btn.getAttribute('data-id');
+          const target = state.allData.find(s => String(s.id) === String(id));
+          if (target) {
+            state.schoolModal = {
+              open: true,
+              mode: 'edit',
+              data: { ...target }
+            };
+            render();
+          }
+          break;
+        }
+
+        case 'close-school-modal':
+          state.schoolModal.open = false;
+          render();
+          break;
+
+        case 'delete-school': {
+          const id = btn.getAttribute('data-id');
+          const target = state.allData.find(s => String(s.id) === String(id));
+          if (target) confirmDeleteSchool(target);
+          break;
+        }
+
+        case 'select-rumdin':
+          state.schoolForm.status_rumdin = btn.getAttribute('data-value');
+          if (state.schoolForm.status_rumdin === 'Belum Ada') {
+            state.schoolForm.kondisi = '';
+            state.schoolForm.file = null;
+            state.schoolForm.previewDataUrl = '';
+          }
+          render();
+          break;
+
+        case 'select-kondisi':
+          state.schoolForm.kondisi = btn.getAttribute('data-value');
+          render();
+          break;
+
+        case 'submit-school-survey':
+          submitSchoolSurvey();
+          break;
+
+        case 'close-confirm':
+          closeConfirm();
+          break;
+
+        case 'execute-confirm':
+          if (typeof state.confirmModal.onConfirm === 'function') {
+            state.confirmModal.onConfirm();
+          }
+          break;
+      }
+    });
+
+    // Jalankan Jam Digital & Inisialisasi Sesi saat Halaman Dimuat
+    window.addEventListener('DOMContentLoaded', () => {
+      clockInterval = setInterval(updateDigitalClock, 1000);
+      initSession();
+    });
+  </script>
+</body>
+</html>
